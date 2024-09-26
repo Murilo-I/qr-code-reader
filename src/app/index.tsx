@@ -1,5 +1,7 @@
 import { CameraScanner } from "@/components/CameraScanner";
+import { saveBikeSpot } from "@/service/api";
 import { EPermissionTypes, isIos, usePermissions } from "@/service/usePermissions";
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, BackHandler, Linking, Pressable, Text, View } from "react-native";
 import { RESULTS } from "react-native-permissions";
@@ -59,8 +61,19 @@ export default function Index() {
             });
     };
 
-    async function saveVacancy(value: string) {
+    function saveVacancy(value: string) {
         console.log(value);
+        const employeeDocument = '536167584';
+        const bikeRackId = 1;
+        const userDocument = value;
+        saveBikeSpot({
+            bikeRackId,
+            userDocument,
+            employeeDocument
+        }).then(resp => {
+            console.log(resp);
+            router.navigate('/');
+        });
     }
 
     function handleBackButtonClick() {
