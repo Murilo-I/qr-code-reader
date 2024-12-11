@@ -5,7 +5,7 @@ export default function Layout() {
     return (
         <View style={{ flex: 1 }}>
             <StatusBar
-                barStyle="light-content"
+                barStyle="dark-content"
                 backgroundColor="transparent"
                 translucent
             />

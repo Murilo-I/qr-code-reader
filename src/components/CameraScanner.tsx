@@ -33,7 +33,7 @@ export const CameraScanner = ({
     }
 
     const onError = (error: CameraRuntimeError) => {
-        Alert.alert('Error!', error.message);
+        Alert.alert('Aviso', error.message);
     }
 
     const codeScanner = useCodeScanner({

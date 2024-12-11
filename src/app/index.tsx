@@ -1,116 +1,112 @@
-import { CameraScanner } from "@/components/CameraScanner";
-import { saveBikeSpot } from "@/service/api";
-import { EPermissionTypes, isIos, usePermissions } from "@/service/usePermissions";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, BackHandler, Linking, Pressable, Text, View } from "react-native";
-import { RESULTS } from "react-native-permissions";
+import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from "react-native";
+import { Dropdown } from "react-native-element-dropdown";
 
-export default function Index() {
+import { getAuth, getUserInfo, listBikeracks } from "@/service/api";
+import { authStorage } from "@/storage/authStorage";
+import { userStorage } from "@/storage/userStorage";
+import { GREEN_CITIZEN, styles } from "@/styles/global";
 
-    const [cameraShown, setCameraShown] = useState(false);
-    const { askPermissions } = usePermissions(EPermissionTypes.CAMERA);
+export default function Login() {
+    const [pass, setPass] = useState<string>();
+    const [email, setEmail] = useState<string>();
+    const [bikeracks, setBikeracks] = useState<{
+        label: string, value: number
+    }[]>([]);
+    const [selectedBikerack, setSelectedBikerack] = useState<{
+        label: string, value: number
+    }>();
+    const [isLoading, setIsLoading] = useState(false);
 
-    const goToSettings = () => {
-        if (isIos) {
-            Linking.openURL('app-settings:');
-        } else {
-            Linking.openSettings();
-        }
-    };
+    function login() {
+        setIsLoading(true);
 
-    const takePermissions = async () => {
-        askPermissions().then(response => {
-            //permission given for camera
-            if (
-                response.type === RESULTS.LIMITED ||
-                response.type === RESULTS.GRANTED
-            ) {
-                setCameraShown(true);
-            }
+        if (email && pass)
+            userStorage.saveCredentials(email, pass);
+        if (selectedBikerack)
+            userStorage.saveBikeRackId(selectedBikerack.value);
+
+        getAuth().then(auth => {
+            authStorage.save(auth.token, auth.userId);
         })
-            .catch(error => {
-                //permission is denied/blocked or camera feature not supported
-                if ('isError' in error && error.isError) {
-                    Alert.alert(
-                        error.errorMessage ||
-                        'Something went wrong while taking camera permission',
-                    );
-                }
-                if ('type' in error) {
-                    if (error.type === RESULTS.UNAVAILABLE) {
-                        Alert.alert('This feature is not supported on this device');
-                    } else if (
-                        error.type === RESULTS.BLOCKED ||
-                        error.type === RESULTS.DENIED
-                    ) {
-                        Alert.alert(
-                            'Permission Denied',
-                            'Please give permission from settings to continue using camera.',
-                            [
-                                {
-                                    text: 'Cancel',
-                                    onPress: () => console.log('Cancel Pressed'),
-                                    style: 'cancel',
-                                },
-                                { text: 'Go To Settings', onPress: () => goToSettings() },
-                            ],
-                        );
-                    }
-                }
-            });
-    };
-
-    function saveVacancy(value: string) {
-        console.log(value);
-        const employeeDocument = '536167584';
-        const bikeRackId = 1;
-        const userDocument = value;
-        saveBikeSpot({
-            bikeRackId,
-            userDocument,
-            employeeDocument
-        }).then(resp => {
-            console.log(resp);
-            router.navigate('/');
-        });
-    }
-
-    function handleBackButtonClick() {
-        if (cameraShown) {
-            setCameraShown(false);
-        }
-        return false;
+            .then(() => getUserInfo()
+                .then(info => {
+                    userStorage.saveDocument(info.document);
+                    router.navigate('/scanner');
+                    setIsLoading(false);
+                }).catch(() => Alert.alert(
+                    'Falha ao obter dados do Usuário',
+                    'Por favor, tente novamente.'
+                ))
+            )
+            .catch(() => Alert.alert('Falha no Login', 'E-mail ou senha incorretos'));
     }
 
     useEffect(() => {
-        BackHandler.addEventListener('hardwareBackPress', handleBackButtonClick);
-        return () => {
-            BackHandler.removeEventListener(
-                'hardwareBackPress',
-                handleBackButtonClick,
+        const fetchData = async () => {
+            setEmail(await userStorage.getEmail());
+            setPass(await userStorage.getPass());
+
+            const bikerackList = await listBikeracks();
+
+            setBikeracks(bikerackList.map(value => ({
+                label: value.name,
+                value: value.bikeRackId
+            })));
+
+            const bikerack = bikerackList.find(
+                async (item) => item.bikeRackId === await userStorage.getBikerackId()
             );
-        };
+
+            if (bikerack) {
+                setSelectedBikerack({ label: bikerack.name, value: bikerack.bikeRackId });
+            }
+        }
+
+        fetchData();
     }, []);
 
     return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Pressable onPress={takePermissions}
-                style={{
-                    padding: 12, backgroundColor: 'lightblue',
-                    borderRadius: 8, width: '50%'
-                }}
-            >
-                <Text style={{
-                    fontSize: 20, fontWeight: 'semibold',
-                    textAlign: 'center'
-                }}>
-                    Scan QR Code
+        <View style={[styles.container, styles.gap16, styles.p16]}>
+            <Text style={styles.title}>
+                Login
+            </Text>
+            <View style={styles.input}>
+                <Ionicons name="mail" size={20} />
+                <TextInput value={email}
+                    onChangeText={setEmail}
+                    style={[styles.fontRegular, styles.flexStart]}
+                    inputMode="email"
+                    placeholder="E-mail"
+                    placeholderTextColor={'lightgray'} />
+            </View>
+            <View style={styles.input}>
+                <Ionicons name="key" size={20} />
+                <TextInput value={pass}
+                    onChangeText={setPass}
+                    style={[styles.fontRegular, styles.flexStart]}
+                    secureTextEntry
+                    placeholder="Senha"
+                    placeholderTextColor={'lightgray'} />
+            </View>
+            <View style={styles.w100}>
+                <Dropdown data={bikeracks}
+                    value={selectedBikerack}
+                    labelField="label"
+                    valueField="value"
+                    placeholder="Biciletário"
+                    onChange={setSelectedBikerack}
+                    maxHeight={300}
+                    style={styles.dropdown} />
+            </View>
+            <Pressable style={[styles.button, styles.w100]} onPress={login}>
+                <Text style={[styles.fontRegular, styles.textWhiteCenter]}>
+                    {isLoading ? <ActivityIndicator color={GREEN_CITIZEN} />
+                        : 'Entrar'}
                 </Text>
             </Pressable>
-            {cameraShown &&
-                <CameraScanner setIsCameraShown={setCameraShown}
-                    onReadCode={saveVacancy} />}
         </View>
     );
 }
