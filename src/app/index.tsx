@@ -23,25 +23,33 @@ export default function Login() {
     function login() {
         setIsLoading(true);
 
-        if (email && pass)
-            userStorage.saveCredentials(email, pass);
-        if (selectedBikerack)
-            userStorage.saveBikeRackId(selectedBikerack.value);
+        const fillStorage = async () => {
+            if (email && pass)
+                await userStorage.saveCredentials(email, pass);
+            if (selectedBikerack)
+                await userStorage.saveBikeRackId(selectedBikerack.value);
+        }
 
-        getAuth().then(auth => {
-            authStorage.save(auth.token, auth.userId);
-        })
-            .then(() => getUserInfo()
-                .then(info => {
-                    userStorage.saveDocument(info.document);
-                    router.navigate('/scanner');
+        const authenticate = () => {
+            getAuth(email, pass).then(auth => {
+                authStorage.save(auth.token, auth.userId);
+            })
+                .then(() => getUserInfo()
+                    .then(info => {
+                        userStorage.saveDocument(info.document);
+                        router.navigate('/scanner');
+                    }).catch(() => Alert.alert(
+                        'Falha ao obter dados do Usuário',
+                        'Por favor, tente novamente.'
+                    )).then(() => setIsLoading(false))
+                )
+                .catch(() => {
+                    Alert.alert('Falha no Login', 'E-mail ou senha incorretos');
                     setIsLoading(false);
-                }).catch(() => Alert.alert(
-                    'Falha ao obter dados do Usuário',
-                    'Por favor, tente novamente.'
-                ))
-            )
-            .catch(() => Alert.alert('Falha no Login', 'E-mail ou senha incorretos'));
+                });
+        }
+
+        fillStorage().then(authenticate);
     }
 
     useEffect(() => {

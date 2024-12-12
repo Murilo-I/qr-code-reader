@@ -1,10 +1,9 @@
 import axios from "axios";
 
 import { authStorage } from "@/storage/authStorage";
-import { userStorage } from "@/storage/userStorage";
 
 const api = axios.create({
-    baseURL: "https://0adf-179-110-38-11.ngrok-free.app/bykerack"
+    baseURL: "https://fe99-129-41-86-5.ngrok-free.app/bykerack"
 });
 
 type AuthToken = {
@@ -38,10 +37,10 @@ type UserInfo = {
     document: string
 }
 
-async function getAuth() {
+async function getAuth(email: string | undefined, password: string | undefined) {
     return await api.post<AuthToken>('/auth', {
-        email: await userStorage.getEmail(),
-        password: await userStorage.getPass()
+        email,
+        password
     })
         .then(resp => resp.data);
 }
